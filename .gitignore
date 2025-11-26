@@ -8,3 +8,10 @@ coverage/
 coverage/
 settings.local.json
 .env
+
+# Google OAuth credentials
+client_secret_*.json
+*:Zone.Identifier
+
+# Local startup scripts
+start-mcp.sh
