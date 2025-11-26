@@ -2,8 +2,7 @@ import { OAuth2Client } from 'google-auth-library';
 import * as fs from 'fs/promises';
 import { getKeysFilePath, generateCredentialsErrorMessage, OAuthCredentials } from './utils.js';
 
-async function loadCredentialsFromFile(): Promise<OAuthCredentials> {
-  const keysContent = await fs.readFile(getKeysFilePath(), "utf-8");
+function parseCredentialsJSON(keysContent: string): OAuthCredentials {
   const keys = JSON.parse(keysContent);
 
   if (keys.installed) {
@@ -22,8 +21,25 @@ async function loadCredentialsFromFile(): Promise<OAuthCredentials> {
   }
 }
 
+async function loadCredentialsFromFile(): Promise<OAuthCredentials> {
+  const keysContent = await fs.readFile(getKeysFilePath(), "utf-8");
+  return parseCredentialsJSON(keysContent);
+}
+
 async function loadCredentialsWithFallback(): Promise<OAuthCredentials> {
-  // Load credentials from file (CLI param, env var, or default path)
+  // Priority 1: Base64 encoded environment variable (for cloud deployment like Railway)
+  const base64Creds = process.env.GOOGLE_OAUTH_CREDENTIALS_BASE64;
+  if (base64Creds) {
+    try {
+      const decoded = Buffer.from(base64Creds, 'base64').toString('utf-8');
+      process.stderr.write('Using OAuth credentials from GOOGLE_OAUTH_CREDENTIALS_BASE64\n');
+      return parseCredentialsJSON(decoded);
+    } catch (error) {
+      throw new Error(`Failed to decode GOOGLE_OAUTH_CREDENTIALS_BASE64: ${error instanceof Error ? error.message : error}`);
+    }
+  }
+
+  // Priority 2: Load credentials from file (CLI param, env var, or default path)
   try {
     return await loadCredentialsFromFile();
   } catch (fileError) {
